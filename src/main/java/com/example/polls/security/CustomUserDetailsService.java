@@ -1,6 +1,6 @@
 package com.example.polls.security;
 
-import com.example.polls.Model.User;
+import com.example.polls.model.User;
 import com.example.polls.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UserDetails;
