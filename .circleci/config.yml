@@ -1,0 +1,126 @@
+version: 2.1
+
+jobs:
+  build:
+    docker:
+      # specify the version you desire here
+      - image: circleci/openjdk:11.0.3-jdk-stretch
+
+      # Specify service dependencies here if necessary
+      # CircleCI maintains a library of pre-built images
+      # documented at https://circleci.com/docs/2.0/circleci-images/
+      # - image: circleci/postgres:9.4
+
+    working_directory: ~/book-store
+
+    environment:
+      # Customize the JVM maximum heap limit
+      MAVEN_OPTS: -Xmx3200m
+
+    steps:
+      #git pull
+      - checkout
+
+      #setup testing env
+      #      - setup_remote_docker:
+      #          docker_layer_caching: true
+      #      - run:
+      #          name: Login to DockerHub
+      #          command: docker login -u $DOCKER_USER -p $DOCKER_PASS
+
+
+      # Download and cache dependencies
+      - restore_cache:
+          keys:
+            - book-store-{{ checksum "pom.xml" }}
+            # fallback to using the latest cache if no exact match is found
+      #            - book-store-
+
+      - run: mvn dependency:go-offline
+
+      - save_cache:
+          paths:
+            - ~/.m2
+          key: book-store-{{ checksum "pom.xml" }}
+
+      #package into jar
+      - run: mvn clean test package
+
+      # build and push docker image to docker hub
+      #      - run: mvn clean compile jib:build -Dimage=EhtiramA/springboot-api:$CIRCLE_BUILD_NUM
+
+       # run unit tests!
+       #      - run: mvn test
+
+      #      # run integration tests!
+      #      - run: mvn clean verify -P integration-test
+
+      - store_artifacts:
+          path: target
+
+      - store_test_results: # uploads the test metadata from the `target/surefire-reports` directory so that it can show up in the CircleCI dashboard.
+          # Upload test results for display in Test Summary: https://circleci.com/docs/2.0/collect-test-data/
+          path: target/surefire-reports
+
+      - run:
+          name: Send to CodeCov
+          command: bash <(curl -s https://codecov.io/bash)
+
+
+  sonar-cloud:
+    docker:
+      - image: circleci/openjdk:11.0.3-jdk-stretch
+    working_directory: ~/book-store
+
+    steps:
+      - checkout
+      - run:
+          name: Analyze on SonarCloud
+          command: mvn verify sonar:sonar
+
+
+  integration-test:
+    docker:
+      # specify the version you desire here
+      - image: circleci/openjdk:11.0.3-jdk-stretch
+    working_directory: ~/book-store
+
+    # run integration tests!
+    steps:
+      - checkout
+      - run: mvn clean verify -P integration-test
+
+
+workflows:
+  version: 2
+  build_and_test:
+    jobs:
+      - build
+      - sonar-cloud:
+          context: SonarCloud
+          requires:
+            - build
+      - integration-test:
+          requires:
+            - build
+#            - unit-test
+
+
+#
+#workflows:
+#  version: 2
+#  build-and-deploy:
+#    jobs:
+#      - bundle_dependencies
+#      - rake_test:
+#          requires:
+#            - bundle_dependencies
+#      - precompile_assets:
+#          requires:
+#            - bundle_dependencies
+#      - deploy:
+#          requires:
+#            - rake_test
+#            - precompile_assets
+
+
